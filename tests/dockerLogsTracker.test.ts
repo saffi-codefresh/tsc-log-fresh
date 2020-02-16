@@ -26,12 +26,12 @@ async function writeRead(text: string): Promise<string> {
 describe('getLogs and load dir data',
   () => {
     it('store ', async () => {
-      const dirname = 'dir';
       const storage = new FileStorage();
       const tracker = new DockerLogsTracker(storage);
-      const emptylist = await tracker.getLogs(dirname);
+      const emptylist = await tracker.getLogs("noSuchDir");
       let emptymerged = await streamToString(emptylist);
       expect(emptymerged).to.equal('');
+      const dirname = 'dir';
       await storage.store(dirname + '/a2', Readable.from("a2"));
       await storage.store(dirname + '/a1', Readable.from("a1"));
       const fullist = await tracker.getLogs(dirname);

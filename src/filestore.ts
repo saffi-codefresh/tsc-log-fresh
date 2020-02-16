@@ -26,8 +26,15 @@ export class FileStorage implements IStorage {
     async store(namepath: String, readable: Readable): Promise<void> {
         this.mkdirs(namepath);
         const fname = `${this.dirpath}/${namepath}`;
-        fs.exists(fname, (x) => x ? fs.renameSync(fname, fname + '_') : '');
+        if (fs.existsSync(fname)) {
+            const bak = fname + '_';
+            if( fs.existsSync(bak) ){
+                fs.unlinkSync(bak);
+            }
 
+            fs.renameSync(fname, bak);
+        } 
+    
         var writable = fs.createWriteStream(fname, 'utf-8');
         readable.pipe(writable);
 
