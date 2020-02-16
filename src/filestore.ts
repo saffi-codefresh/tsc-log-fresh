@@ -3,14 +3,14 @@ import { Readable } from 'stream';
 import { IStorage } from './iStorage';
 export class FileStorage implements IStorage {
     async list(namepath: string): Promise<string[]> {
-        const fname = `${this.dirpath}/${namepath}`;
+        const fname = `${this.dirpath}/${namepath}`;    
         return new Promise<string[]>((resolve, reject) => {
             fs.readdir(fname, (err, files) => {
                 if (err) {
                     resolve([]);
                 } else {
                     files.sort();
-                    resolve(files);
+                    resolve(files.filter(it=>!it.endsWith('_')));
                 }
             });
         });

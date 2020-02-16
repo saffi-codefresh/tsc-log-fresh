@@ -23,15 +23,15 @@ async function writeRead(text: string): Promise<string> {
   return await streamToString(resultStream);
 }
 
-describe('Store and load dir data',
+describe('getLogs and load dir data',
   () => {
     it('store ', async () => {
       const dirname = 'dir';
       const storage = new FileStorage();
       const tracker = new DockerLogsTracker(storage);
       const emptylist = await tracker.getLogs(dirname);
-      // let empty = await streamToString(emptylist);
-      // expect(empty.length).to.equal(0);
+      let emptymerged = await streamToString(emptylist);
+      expect(emptymerged).to.equal('');
       await storage.store(dirname + '/a2', Readable.from("a2"));
       await storage.store(dirname + '/a1', Readable.from("a1"));
       const fullist = await tracker.getLogs(dirname);
@@ -40,20 +40,3 @@ describe('Store and load dir data',
     });
   });
 
-// describe('check store retrieve ',
-//   () => {
-
-//     it('list ', async () => {
-//       const storage = new FileStorage("unused");
-//       var files = await storage.list("");
-//       expect(files == []).to.true;
-//     });
-//     it('list used ', async () => {
-//       const storage = new FileStorage("used");
-//       var readable: Readable = Readable.from("text");
-//       await storage.store('hello', readable);
-//       var files = await storage.list("");
-//       expect(files == ["hello"]).to.true;
-//     });
-   
-//   });

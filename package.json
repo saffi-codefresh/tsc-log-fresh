@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@types/chai": "^4.2.9",
+    "@types/combined-stream": "^1.0.2",
     "@types/mocha": "^7.0.1",
     "@types/node": "^13.7.1",
     "chai": "^4.2.0",
@@ -15,7 +16,6 @@
     "test": "mocha -r ts-node/register tests/**/*.test.ts --timeout 60000"
   },
   "dependencies": {
-    "get-dependencies": "^1.1.0",
     "stream-equal": "^1.1.1",
     "stream-to-string": "^1.2.0",
     "string-to-stream": "^3.0.1"

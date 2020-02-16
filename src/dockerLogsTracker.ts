@@ -112,20 +112,30 @@ export class DockerLogsTracker {
     }
     
     async getLogs(name: string) :  Promise<Readable> {
-        let result = new PassThrough();
+     
         const files = await this.storage.list(name);
-        const res = new PassThrough();
-        var index = 0;
-        const storage = this.storage;
-        async function consume() : Promise<Readable>{
-            if (files.length == 0) return res;
-            var file = files.pop()
-            let chunk = await storage.load(`${name}/${file}`);
-            chunk.on("close", consume);
-            chunk.pipe(res);
-            return res;
+        const  toMerge :Readable [] = []; 
+        for(let i in files){
+            let file = files[i];
+            let current = await this.storage.load(`${name}/${file}`);
+            toMerge.push(current);
         }
-        return await consume();
+        return this.merge(...toMerge);
     }
+
+     merge = (...streams: Readable[]) => {
+        let pass = new PassThrough()
+        let waiting = streams.length
+        if(!waiting){
+            pass.end();
+        }
+        for (let stream of streams) {
+            pass = stream.pipe(pass, {end: false})
+            stream.once('end', () => --waiting === 0 && pass.emit('end'))
+        }
+        return pass
+    }
+    
+
 }
 
