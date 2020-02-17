@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { Readable } from 'stream';
 import { IStorage } from './iStorage';
+import { promisify } from 'util';
 export class FileStorage implements IStorage {
     async list(namepath: string): Promise<string[]> {
         const fname = `${this.dirpath}/${namepath}`;    
@@ -24,36 +25,34 @@ export class FileStorage implements IStorage {
         }
     }
     async store(namepath: String, readable: Readable): Promise<void> {
-        this.mkdirs(namepath);
+        await this.mkdirs(namepath);
         const fname = `${this.dirpath}/${namepath}`;
-        if (fs.existsSync(fname)) {
-            const bak = fname + '_';
-            if( fs.existsSync(bak) ){
-                fs.unlinkSync(bak);
+        const bak = fname + '_';
+        if (await promisify(fs.exists)( fname )){
+            if (await promisify(fs.exists)(bak)) { 
+             await promisify(fs.unlink)(bak);
             }
 
-            fs.renameSync(fname, bak);
+            await promisify(fs.rename)(fname, bak);
         } 
-    
-        var writable = fs.createWriteStream(fname, 'utf-8');
-        readable.pipe(writable);
 
+        const writable = fs.createWriteStream(fname, 'utf-8');
+        readable.pipe(writable);        
     }
 
-    private mkdirs(namepath: String) {
+    private async mkdirs(namepath: String) {
         const dirPathEnd = namepath.lastIndexOf('/');
         if (dirPathEnd <= 0) return;
         let dir = namepath.slice(0, dirPathEnd);
         let parts = dir.split('/');
         let curPath = this.dirpath;
         for (let i = 0; i < parts.length; i++) {
-            if (!fs.existsSync(curPath)) {
-                fs.mkdirSync(curPath);
-            }
+            const x = await promisify(fs.exists)(curPath);
+            !x?await promisify(fs.mkdir)(curPath):'';
             curPath += '/' + parts[i];
         }
-        if (!fs.existsSync(curPath)) {
-            fs.mkdirSync(curPath);
+        if (!await promisify(fs.exists)(curPath)) {
+            await promisify(fs.mkdir)(curPath);
         }
     }
 
