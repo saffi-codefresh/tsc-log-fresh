@@ -9,19 +9,18 @@
     "mocha": "^7.0.1",
     "nodemon": "^2.0.2",
     "ts-node": "^8.6.2",
-    "typescript": "^3.7.5"
+    "typescript": "^3.7.5",
+    "stream-equal": "^1.1.1",
+    "stream-to-string": "^1.2.0",
+    "string-to-stream": "^3.0.1"
   },
   "scripts": {
-    "build": "tsc -p ./src ./tests",
+    "build": "tsc -p .",
     "start": "npm run build -- -w",
     "demo": "ts-node ./src/tracklog.ts demo",
     "track": "ts-node ./src/tracklog.ts track",
     "logs": "ts-node ./src/tracklog.ts logs",
     "test": "mocha -r ts-node/register tests/**/*.test.ts --timeout 60000"
   },
-  "dependencies": {
-    "stream-equal": "^1.1.1",
-    "stream-to-string": "^1.2.0",
-    "string-to-stream": "^3.0.1"
-  }
+  "dependencies": {}
 }

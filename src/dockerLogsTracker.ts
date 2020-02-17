@@ -71,27 +71,44 @@ export class DockerLogsTracker {
         let verbose: boolean = this.verbose;
         console.log(`Tracking: ${name}`);
 
+        /**
+        * update the lasest updated time so if we run again we would not need to load all the logs that were already loaded
+        */
+        let updateTimeSlice = async(lastTimeSliceParam: string, name: string, latestDateStr: string)=>{
+            if (!lastTimeSliceParam) return;
+            if (this.sinceSlice[name]==lastTimeSliceParam) return;
+            this.sinceSlice[name] = lastTimeSliceParam;
+            if (this.confUpdate) {
+                this.confUpdate(this.sinceSlice);
+            }
+            lastTimeSlice = latestDateStr.split(".")[0];
+        }
+        
         trackLatest.on('data', (chunk) => {
             const dateStr: string = chunk.toString().slice(0, 31);
             // todo - add validatation 
             let validated = true;
             if (validated) {
                 const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
+                // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
-                    lastTimeSlice = this.updateTimeSlice(lastTimeSlice, name, dateStr);
-                    trackLatest.pause();
-                    let newPipe = new PassThrough();
-                    this.storage.store(perHourName, newPipe);
-                    newPipe.write(chunk);
-                    trackLatest.unpipe(lastPipe);
-                    trackLatest.pipe(newPipe);
                     if (verbose) {
                         console.log(`${dateStr}  switch ${nameToStore} to ${dateStr}`);
                     }
-                    nameToStore = perHourName;
+                    let newPipe = new PassThrough();
+                    trackLatest.pause();  // does not work , bakcpressure ?
+                    this.storage.store(perHourName, newPipe);
+                    trackLatest.pipe(newPipe);
+                    trackLatest.unpipe(lastPipe);
+                    newPipe.write(chunk);
                     lastPipe = newPipe;
+                    if (verbose) {
+                        console.log(`${dateStr}  switched ${nameToStore} to ${dateStr}`);
+                    }
+                    nameToStore = perHourName;
                     trackLatest.resume();
+                    updateTimeSlice(lastTimeSlice, name, dateStr);
                 }
             }
             if (verbose) {
@@ -101,7 +118,6 @@ export class DockerLogsTracker {
         trackLatest.on('end', () => {
             console.log(`Closing ${name}. Check if the container is running`);
         });
-
         trackLatest.pause();
         task.stdout.pipe(trackLatest);
         trackLatest.pipe(lastPipe);
@@ -110,18 +126,8 @@ export class DockerLogsTracker {
     }
 
 
-    /**
-     * Return the lasest updated time so if we run again we would not need to load all the logs that were loaded
-     */
-    private updateTimeSlice(lastTimeSlice: string, name: string, latestDateStr: string): string {
-        if (lastTimeSlice) {
-            this.sinceSlice[name] = lastTimeSlice;
-            if (this.confUpdate) {
-                this.confUpdate(this.sinceSlice);
-            }
-        }
-        return latestDateStr.split(".")[0];
-    }
+
+
 
     async getLogs(name: string): Promise<Readable> {
         const files = await this.storage.list(name);
