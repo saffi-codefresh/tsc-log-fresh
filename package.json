@@ -4,6 +4,7 @@
     "@types/combined-stream": "^1.0.2",
     "@types/mocha": "^7.0.1",
     "@types/node": "^13.7.1",
+    "@types/yargs": "^15.0.3",
     "chai": "^4.2.0",
     "mocha": "^7.0.1",
     "nodemon": "^2.0.2",
@@ -12,7 +13,10 @@
   },
   "scripts": {
     "build": "tsc -p ./src ./tests",
-    "start": "ts-node ./src/index.ts",
+    "start": "npm run build -- -w",
+    "demo": "ts-node ./src/tracklog.ts demo",
+    "track": "ts-node ./src/tracklog.ts track",
+    "logs": "ts-node ./src/tracklog.ts logs",
     "test": "mocha -r ts-node/register tests/**/*.test.ts --timeout 60000"
   },
   "dependencies": {

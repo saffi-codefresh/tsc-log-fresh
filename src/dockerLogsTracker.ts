@@ -18,8 +18,10 @@ export class DockerLogsTracker {
     sinceSlice: { [indexer: string]: string } = {};
     storage: IStorage;
     confUpdate?: ((c: any) => Promise<void>);
-    constructor(storage: IStorage) {
+    verbose: boolean;
+    constructor(storage: IStorage, verbose = false) {
         this.storage = storage;
+        this.verbose = verbose;
     }
 
     async start(conf: any, confupdate?: (c: any) => Promise<void>) {
@@ -39,7 +41,7 @@ export class DockerLogsTracker {
                 }
             }
         });
-        Promise.all(logTasks).then(() => console.log("All Done"));
+        Promise.all(logTasks).then(() => console.log("=============================== Started. =============================="));
     }
 
 
@@ -66,12 +68,15 @@ export class DockerLogsTracker {
         let lastPipe = new PassThrough();
         let nameToStore = `${name}/logs`;
         let lastTimeSlice = '';
+        let verbose: boolean = this.verbose;
+        console.log(`Tracking: ${name}`);
+
         trackLatest.on('data', (chunk) => {
             const dateStr: string = chunk.toString().slice(0, 31);
             // todo - add validatation 
             let validated = true;
             if (validated) {
-                const perHour = dateStr.split(':').slice(0, 1).join('_')+"_00_00";
+                const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
                     lastTimeSlice = this.updateTimeSlice(lastTimeSlice, name, dateStr);
@@ -81,14 +86,22 @@ export class DockerLogsTracker {
                     newPipe.write(chunk);
                     trackLatest.unpipe(lastPipe);
                     trackLatest.pipe(newPipe);
-                    console.log(`${dateStr}  switch ${nameToStore} to ${dateStr}`);
+                    if (verbose) {
+                        console.log(`${dateStr}  switch ${nameToStore} to ${dateStr}`);
+                    }
                     nameToStore = perHourName;
                     lastPipe = newPipe;
                     trackLatest.resume();
                 }
             }
-            console.log(`${nameToStore} ${dateStr}`);
+            if (verbose) {
+                console.log(`${nameToStore} ${dateStr}`);
+            }
         });
+        trackLatest.on('end', () => {
+            console.log(`Closing ${name}. Check if the container is running`);
+        });
+
         trackLatest.pause();
         task.stdout.pipe(trackLatest);
         trackLatest.pipe(lastPipe);
@@ -108,14 +121,12 @@ export class DockerLogsTracker {
             }
         }
         return latestDateStr.split(".")[0];
-
     }
-    
-    async getLogs(name: string) :  Promise<Readable> {
-     
+
+    async getLogs(name: string): Promise<Readable> {
         const files = await this.storage.list(name);
-        const  toMerge :Readable [] = []; 
-        for(let i in files){
+        const toMerge: Readable[] = [];
+        for (let i in files) {
             let file = files[i];
             let current = await this.storage.load(`${name}/${file}`);
             toMerge.push(current);
@@ -123,19 +134,19 @@ export class DockerLogsTracker {
         return this.merge(...toMerge);
     }
 
-     merge = (...streams: Readable[]) => {
+    merge = (...streams: Readable[]) => {
         let pass = new PassThrough()
         let waiting = streams.length
-        if(!waiting){
+        if (!waiting) {
             pass.end();
         }
         for (let stream of streams) {
-            pass = stream.pipe(pass, {end: false})
+            pass = stream.pipe(pass, { end: false })
             stream.once('end', () => --waiting === 0 && pass.emit('end'))
         }
         return pass
     }
-    
+
 
 }
 

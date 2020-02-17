@@ -1,13 +1,13 @@
 
 import { expect } from 'chai';
 import 'mocha';
-import str from 'string-to-stream'
-import streamToString from 'stream-to-string'
+import * as str from 'string-to-stream'
+import streamToString from 'stream-to-string';
 import { FileStorage } from '../src/filestore';
 import { Readable, Writable } from 'stream';
 import * as stream from 'stream';
 import { Duplex, Transform } from 'stream';
-import streamEqual from 'stream-equal';
+import * as streamEqual from 'stream-equal';
 import { read } from 'fs';
 import { DockerLogsTracker } from '../src/dockerLogsTracker';
 

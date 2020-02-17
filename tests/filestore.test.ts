@@ -1,8 +1,8 @@
 
 import { expect } from 'chai';
 import 'mocha';
-import str from 'string-to-stream'
-import streamToString from 'stream-to-string'
+import * as str from 'string-to-stream'
+import streamToString from 'stream-to-string';
 import { FileStorage } from '../src/filestore';
 import { Readable , Writable} from 'stream';
 import * as stream from 'stream';
@@ -33,50 +33,53 @@ async function writeRead(text : string):Promise<string>{
 }
 
 describe('Store and load data', 
-  () => { 
+    () => { 
     it('should write and read same', async () => {
     const v = "hello world";
-    const resultPromise = writeRead(v);
-      resultPromise.then(
-            result=>{
-              expect(result).to.equal(v);
-             console.log(`result ${result}`);
-      })
+    const result =  await writeRead(v);
+    expect(result).to.equal(v);
+    console.log(`result ${result}`);
     }); 
 });
 
 describe('check store retrieve ', 
   () => {
     
-    it('list ', async () => {
+    it('list ',  async () => {
       const storage = new FileStorage("unused");
       var files = await storage.list("");
       expect( files.length ).to.equal(0);
     } );
-    it('list used ', async () => {
+    it('list used ',  async () => {
       const storage = new FileStorage("used");
       var readable:Readable= Readable.from("text");
       await storage.store('hello',  readable);  
       var files = await storage.list("");
       expect( files ).to.deep.equal(['hello']);
     } );
-    it('negative test first', async () => {
+    
+  });
+
+
+  describe('check store retrieve ', 
+  () => {
+    it('negative test first',  async () => {
       const storage = new FileStorage();
-      expect( await compareStore(storage, "shouldfail", createCounterReader(11), createCounterReader(10)) ).to.false;
-      expect( await compareStore(storage, "shouldfail2", createCounterReader(10), createCounterReader(11)) ).to.false;
+      expect(  await compareStore(storage, "shouldfail", createCounterReader(11), createCounterReader(10)) ).to.false;
+      expect(  await compareStore(storage, "shouldfail2", createCounterReader(10), createCounterReader(11)) ).to.false;
     } );
     it('positive simple', async () => {
       const storage = new FileStorage();
-      expect( await compareStore(storage, "shouldSucceed", createCounterReader(11), createCounterReader(11)) ).to.true;
+      expect(  await compareStore(storage, "shouldSucceed", createCounterReader(11), createCounterReader(11)) ).to.true;
     } );
     it('checking small', async () => {
       const storage = new FileStorage();
       const size = 1000;
       const key = `small${size}`;
-      expect( await compareStore(storage, key, createCounterReader(size), createCounterReader(size)) ).to.true;
+      expect(  await compareStore(storage, key, createCounterReader(size), createCounterReader(size)) ).to.true;
     } );
     
-    // it('checking medium', async () => {
+    // it('checking medium',  async () => {
     //   const storage = new FileStorage();
     //   const size = 100000;
     //   const key = `medium${size}`;
