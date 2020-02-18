@@ -48,7 +48,7 @@ export class DockerLogsTracker {
 
 
     async trackTask(name: string, since?: Date): Promise<void> {
-        const sinceStr = since ? `--since ${since.toISOString()}` : '';
+        const sinceStr = since ? `--since ${since.toISOString().split('.')[0]}Z` : '';
         // we track the last ended slice.
         this.currentSlice[name] = this.lastDoneSlice[name] ;
 
@@ -73,7 +73,6 @@ export class DockerLogsTracker {
         let lastPipe = new PassThrough();
         let nextPipe = new PassThrough();
         let nameToStore = `${name}/logs`;
-        let lastTimeSlice = '';
         console.log(`Tracking: ${name}`);
 
         /**
@@ -93,13 +92,13 @@ export class DockerLogsTracker {
         this.storage.store(nameToStore, lastPipe);
 
         trackLatest.on('data', (chunk) => {
-            const dateStr: string = chunk.toString().slice(0, 19);
+            const dateStr: string = chunk.toString().slice(0, 19)+"Z";
             // todo - add validatation 
             let validated = Date.parse(dateStr);//
             if (validated) {
-                const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
+                const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00Z";
                 // per min
-                // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
+                // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00Z";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
                     let oldPipe = lastPipe;

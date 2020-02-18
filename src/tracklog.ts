@@ -68,7 +68,7 @@ async function dump(name: string, sinceStr?:string, untilStr?:string, verbose?:b
 }
 
 // dump('chosen', '2020-02-18T21:10:39', '2020-02-18T21:10:39', true)
-startDemo()
+// startDemo()
 commandLine()
 
 
