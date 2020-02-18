@@ -91,8 +91,8 @@ export class DockerLogsTracker {
             // todo - add validatation 
             let validated = true;
             if (validated) {
-                // const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
-                const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
+                const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
+                // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
                     if (verbose) {
