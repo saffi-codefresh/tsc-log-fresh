@@ -15,29 +15,31 @@ interface IObjectHash {
 export class DockerLogsTracker {
     tasks: IObjectHash = {};
     tasksPipe: IObjectHash = {};
-    sinceSlice: { [indexer: string]: string } = {};
+    lastDoneSlice: { [indexer: string]: string } = {};
+    currentSlice: { [indexer: string]: string } = {};
     storage: IStorage;
-    confUpdate?: ((c: any) => Promise<void>);
+    updateConf?: ((c: any) => Promise<void>);
     verbose: boolean;
     constructor(storage: IStorage, verbose = false) {
         this.storage = storage;
         this.verbose = verbose;
     }
 
-    async start(conf: any, confupdate?: (c: any) => Promise<void>) {
-        this.confUpdate = confupdate;
+    async start(conf: any, updateConf?: (c: any) => Promise<void>) {
+        this.updateConf = updateConf;
         var logTasks: Promise<void>[] = [];
+
         Object.entries(conf).forEach(kv => {
             let key = kv[0];
             let value = kv[1];
             if (typeof (value) == 'string') {
-                this.sinceSlice[kv[0]] = value;
+                this.lastDoneSlice[kv[0]] = value;
                 if (value) {
                     let since = new Date(Date.parse(value));
-                    logTasks.push(this.logTask(key, since));
+                    logTasks.push(this.trackTask(key, since));
                 }
                 else {
-                    logTasks.push(this.logTask(key));
+                    logTasks.push(this.trackTask(key));
                 }
             }
         });
@@ -45,8 +47,10 @@ export class DockerLogsTracker {
     }
 
 
-    async logTask(name: string, since?: Date): Promise<void> {
+    async trackTask(name: string, since?: Date): Promise<void> {
         const sinceStr = since ? `--since ${since.toISOString()}` : '';
+        // we track the last ended slice.
+        this.currentSlice[name] = this.lastDoneSlice[name] ;
 
         let shellCmd = `docker logs ${name} -f -t ${sinceStr}`;
         const task = spawn(shellCmd, {
@@ -59,59 +63,61 @@ export class DockerLogsTracker {
             console.log('child process exited with ' +
                 `code ${code} and signal ${signal}`);
         });
-        this.tasks['test'] = task;
+        this.tasks[name] = task;
     }
 
 
     private setUpStoragePipeSwitchPerHour(name: string, task: ChildProcessWithoutNullStreams) {
+        const verbose: boolean = this.verbose;
         const trackLatest = new PassThrough();
         let lastPipe = new PassThrough();
+        let nextPipe = new PassThrough();
         let nameToStore = `${name}/logs`;
         let lastTimeSlice = '';
-        let verbose: boolean = this.verbose;
         console.log(`Tracking: ${name}`);
 
         /**
-        * update the lasest updated time so if we run again we would not need to load all the logs that were already loaded
+        * update the last retried time so if we run again we would not need to load all the logs that were already loaded
         */
-        let updateTimeSlice = async(lastTimeSliceParam: string, name: string, latestDateStr: string)=>{
-            if (!lastTimeSliceParam) return;
-            if (this.sinceSlice[name]==lastTimeSliceParam) return;
-            this.sinceSlice[name] = lastTimeSliceParam;
-            if (this.confUpdate) {
-                this.confUpdate(this.sinceSlice);
-            }
-            lastTimeSlice = latestDateStr.split(".")[0];
+        let updateTimeSlice = async (latestDateStr: string) => {
+            this.lastDoneSlice[name] = this.currentSlice[name];            
+            this.currentSlice[name] = latestDateStr;            
+            if (this.updateConf) {
+                this.updateConf(this.lastDoneSlice);
+                if(verbose){
+                    console.log(`confUpdated ${name}`)
+                }
+            }    
         }
 
         this.storage.store(nameToStore, lastPipe);
-        
+
         trackLatest.on('data', (chunk) => {
-            const dateStr: string = chunk.toString().slice(0, 31);
+            const dateStr: string = chunk.toString().slice(0, 19);
             // todo - add validatation 
-            let validated = true;
+            let validated = Date.parse(dateStr);//
             if (validated) {
                 const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
+                // per min
                 // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
-                    if (verbose) {
-                        console.log(`${dateStr}  switch ${nameToStore} to ${dateStr}`);
-                    }
                     let oldPipe = lastPipe;
-                    lastPipe = new PassThrough();
-                    oldPipe.end() 
-                    this.storage.store(perHourName, lastPipe);
-                    if (verbose) {
-                        console.log(`${dateStr}  switched ${nameToStore} to ${dateStr}`);
-                    }
+                    let nameWas = nameToStore;
+                    lastPipe = nextPipe;
                     nameToStore = perHourName;
-                    updateTimeSlice(lastTimeSlice, name, dateStr);
+                    nextPipe = new PassThrough()
+                    if (verbose) {
+                        console.log(`${dateStr}  switch ${nameWas} to ${nameToStore}`);
+                    }
+                    oldPipe.end(); // make sure we are close 
+                    this.storage.store(nameToStore, lastPipe);
+                    updateTimeSlice(dateStr);
                 }
             }
-            lastPipe.write(chunk);
+            lastPipe.write(chunk); // several lines 
             if (verbose) {
-                console.log(`${nameToStore} ${dateStr}`);
+                console.log(`${nameToStore}: ${dateStr}`);
             }
         });
         trackLatest.on('end', () => {
@@ -120,11 +126,20 @@ export class DockerLogsTracker {
         task.stdout.pipe(trackLatest);
     }
 
-    async getLogs(name: string): Promise<Readable> {
+    async getLogs(name: string, since?: number, until?: number, verbose?: boolean): Promise<Readable> {
         const files = await this.storage.list(name);
+
         const toMerge: Readable[] = [];
-        for (let i in files) {
-            let file = files[i];
+        const filesToInclude: string[] = [];
+        for (let file of files) {
+            if (this.checkFilenameIcluded(file, since, until, verbose)) {
+                filesToInclude.push(file);
+                if (verbose) {
+                    console.log(`include: ${name}/${file}`, file);
+                }
+            }
+        }
+        for (let file of filesToInclude) {
             let current = await this.storage.load(`${name}/${file}`);
             toMerge.push(current);
         }
@@ -144,6 +159,30 @@ export class DockerLogsTracker {
         return pass
     }
 
-
+    private checkFilenameIcluded(file: string, since?: number, until?: number, verbose?: boolean) {
+        const fileDate = file.replace(/_/g, ':').replace('logs-', '');
+        let startTimePlus = Date.parse(fileDate);
+        if (startTimePlus) {
+            if (since) {
+                if (startTimePlus < since - 60000) {
+                    if (verbose) {
+                        console.log("since: skip ", file);
+                    }
+                    // continue;
+                    return false;
+                }
+            }
+            if (until) {
+                if (startTimePlus > until) {
+                    if (verbose) {
+                        console.log("until: skip ", file);
+                    }
+                    // continue;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
 
