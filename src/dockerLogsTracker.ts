@@ -83,34 +83,33 @@ export class DockerLogsTracker {
             }
             lastTimeSlice = latestDateStr.split(".")[0];
         }
+
+        this.storage.store(nameToStore, lastPipe);
         
         trackLatest.on('data', (chunk) => {
             const dateStr: string = chunk.toString().slice(0, 31);
             // todo - add validatation 
             let validated = true;
             if (validated) {
-                const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
-                // const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
+                // const perHour = dateStr.split(':').slice(0, 1).join('_') + "_00_00";
+                const perHour = dateStr.split(':').slice(0, 2).join('_') + "_00";
                 const perHourName = `${name}/logs-${perHour}`;
                 if (nameToStore != perHourName) {
                     if (verbose) {
                         console.log(`${dateStr}  switch ${nameToStore} to ${dateStr}`);
                     }
-                    let newPipe = new PassThrough();
-                    trackLatest.pause();  // does not work , bakcpressure ?
-                    this.storage.store(perHourName, newPipe);
-                    trackLatest.pipe(newPipe);
-                    trackLatest.unpipe(lastPipe);
-                    newPipe.write(chunk);
-                    lastPipe = newPipe;
+                    let oldPipe = lastPipe;
+                    lastPipe = new PassThrough();
+                    oldPipe.end() 
+                    this.storage.store(perHourName, lastPipe);
                     if (verbose) {
                         console.log(`${dateStr}  switched ${nameToStore} to ${dateStr}`);
                     }
                     nameToStore = perHourName;
-                    trackLatest.resume();
                     updateTimeSlice(lastTimeSlice, name, dateStr);
                 }
             }
+            lastPipe.write(chunk);
             if (verbose) {
                 console.log(`${nameToStore} ${dateStr}`);
             }
@@ -118,16 +117,8 @@ export class DockerLogsTracker {
         trackLatest.on('end', () => {
             console.log(`Closing ${name}. Check if the container is running`);
         });
-        trackLatest.pause();
         task.stdout.pipe(trackLatest);
-        trackLatest.pipe(lastPipe);
-        this.storage.store(nameToStore, lastPipe);
-        trackLatest.resume();
     }
-
-
-
-
 
     async getLogs(name: string): Promise<Readable> {
         const files = await this.storage.list(name);
