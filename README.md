@@ -19,7 +19,7 @@
 *** other
 
 
-## run the tracker service
+## Run the tracker service
 * npm run track
 * npm run track -- -v    # verbose 
 ** The tracker pull the logs with timestamp and store them in the storage using one hour chunks
@@ -27,7 +27,7 @@
 * The tracked containers are specified in a conf file: tracklog.conf
 * The file stores the last "hour" retrieved which enables incremental pull
 
-## pull the logs, similar to docker logs
+## Pull the logs, similar to docker logs
 * npm logs chosen 
 ** Pull all logs of container named "chosen"
 ** optional: --since DATE --until Date, which provide a range which include that time.
