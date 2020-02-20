@@ -145,17 +145,19 @@ export class DockerLogsTracker {
         return this.merge(...toMerge);
     }
 
-    merge = (...streams: Readable[]) => {
-        let pass = new PassThrough()
-        let waiting = streams.length
-        if (!waiting) {
+    merge (...streams: Readable[]):Readable  {
+        let pass = new PassThrough();
+        let n = streams.length;
+        if (!n) {
             pass.end();
+            return pass;
         }
-        for (let stream of streams) {
-            pass = stream.pipe(pass, { end: false })
-            stream.once('end', () => --waiting === 0 && pass.emit('end'))
+        for (let i=1;i<n-1;i++){
+            streams[i-1].once('end', () => streams[i].pipe(pass, {end:false}));
         }
-        return pass
+        streams[n-1].once('end', () => pass.emit('end'));
+        streams[0].pipe(pass, { end: false });
+        return pass;
     }
 
     private checkFilenameIcluded(file: string, since?: number, until?: number, verbose?: boolean) {
