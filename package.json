@@ -16,13 +16,15 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "start": "npm run build -- -w",
+    "watch": "npm run build -- -w",
     "help": "ts-node ./src/tracklog.ts -- help",
     "demo": "ts-node ./src/tracklog.ts demo",
     "track": "ts-node ./src/tracklog.ts track",
     "tracker": "ts-node ./src/tracklog.ts",
     "logs": "ts-node ./src/tracklog.ts logs",
-    "test": "mocha -r ts-node/register tests/**/*.test.ts --timeout 60000"
+    "test": "mocha -r ts-node/register tests/**/*.test.ts --timeout 60000",
+    "start": "npm run demo",
+    "installBuild": " npm install && npm run build"
   },
   "dependencies": {}
 }
